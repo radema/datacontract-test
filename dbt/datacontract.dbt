@@ -1,0 +1,91 @@
+version: 2
+models:
+- name: orders
+  config:
+    meta:
+      data_contract: my-data-contract-id
+      owner: Your Name
+    materialized: table
+    contract:
+      enforced: true
+  description: One record per order. Includes cancelled and deleted orders.
+  columns:
+  - name: order_id
+    data_type: TEXT
+    description: An internal ID that identifies an order in the online shop.
+    constraints:
+    - type: not_null
+    - type: unique
+    meta:
+      pii: true
+      classification: restricted
+    tags:
+    - orders
+  - name: order_timestamp
+    data_type: TIMESTAMP_TZ
+    description: The business timestamp in UTC when the order was successfully registered
+      in the source system and the payment was successful.
+    constraints:
+    - type: not_null
+    tags:
+    - business-timestamp
+  - name: order_total
+    data_type: NUMBER
+    description: Total amount the smallest monetary unit (e.g., cents).
+    constraints:
+    - type: not_null
+  - name: customer_id
+    data_tests:
+    - dbt_expectations.expect_column_value_lengths_to_be_between:
+        min_value: 10
+        max_value: 20
+    data_type: TEXT
+    description: Unique identifier for the customer.
+  - name: customer_email_address
+    data_type: TEXT
+    description: The email address, as entered by the customer.
+    constraints:
+    - type: not_null
+    meta:
+      pii: true
+      classification: sensitive
+  - name: processed_timestamp
+    data_type: TIMESTAMP_TZ
+    description: The timestamp when the record was processed by the data platform.
+    constraints:
+    - type: not_null
+- name: line_items
+  config:
+    meta:
+      data_contract: my-data-contract-id
+      owner: Your Name
+    materialized: table
+    contract:
+      enforced: true
+  description: A single article that is part of an order.
+  columns:
+  - name: line_item_id
+    data_type: TEXT
+    description: Primary key of the lines_item_id table
+    constraints:
+    - type: not_null
+  - name: order_id
+    data_tests:
+    - relationships:
+        to: source("my-data-contract-id", "orders")
+        field: order_id
+    data_type: TEXT
+    description: An internal ID that identifies an order in the online shop.
+    meta:
+      pii: true
+      classification: restricted
+    tags:
+    - orders
+  - name: sku
+    data_tests:
+    - dbt_expectations.expect_column_values_to_match_regex:
+        regex: ^[A-Za-z0-9]{8,14}$
+    data_type: TEXT
+    description: The purchased article number
+    tags:
+    - inventory
